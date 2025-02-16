@@ -2,7 +2,9 @@ from typing import Any
 from fastapi import FastAPI
 from mcp_host import models
 from mcp_host.lifespan import lifespan, get_mcp_server
-from mcp.types import ListToolsResult
+from mcp.types import ListToolsResult, ListResourcesResult
+from pydantic import AnyUrl
+import urllib.parse
 
 app = FastAPI(
     title="Stateless MCP Host",
@@ -25,3 +27,17 @@ async def run_tool(tool: str, args: dict[str, Any]) -> models.StatelessCallToolR
     data["list_resource_changed"] = False
     return models.StatelessCallToolResult.model_validate(data)
 
+@app.get("/resources")
+async def list_resources() -> ListResourcesResult:
+    server = get_mcp_server()
+    return await server.list_resources()
+
+@app.post("/resources/{resource}")
+async def run_resource(resource: str):
+    server = get_mcp_server()
+    resource = urllib.parse.unquote(resource)
+    result = await server.read_resource(AnyUrl(resource))
+
+    data = result.model_dump()
+    data["list_resource_changed"] = False
+    return models.StatelessReadResourcesResult.model_validate(data)
